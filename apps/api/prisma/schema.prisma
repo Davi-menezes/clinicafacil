@@ -1,0 +1,330 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String   @id @default(uuid())
+  emailEncrypted String
+  emailHash      String   @unique
+  senhaHash      String
+  tipo           String
+  nomeCompleto   String
+  verificado     Boolean  @default(false)
+  totpSecret     String?
+  totpAtivo      Boolean  @default(false)
+  lgpdConsent    Boolean  @default(false)
+  googleId       String?  @unique
+  ultimoAcessoEm DateTime?
+  criadoEm       DateTime @default(now())
+  atualizadoEm   DateTime @updatedAt
+
+  profissional       Profissional?
+  paciente           Paciente?
+  refreshTokens      RefreshToken[]
+  verificationTokens VerificationToken[]
+  passwordResetTokens PasswordResetToken[]
+  auditLogs          LogAuditoria[]
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  familia   String
+  usado     Boolean  @default(false)
+  expiraEm  DateTime
+  criadoEm  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familia])
+}
+
+model Profissional {
+  id                      String   @id @default(uuid())
+  userId                  String   @unique
+  slug                    String   @unique
+  especialidadePrincipal  String
+  conselhoNumero          String
+  conselhoSigla           String
+  conselhoUf              String
+  conselhoVerificado      Boolean  @default(false)
+  pendenteValidacaoManual Boolean  @default(false)
+  fotoPerfil              String?
+  descricao               String?
+  preco                   Float?
+  precoMin                Float?
+  precoMax                Float?
+  tempConsultaMinutos     Int      @default(60)
+  bufferMinutos           Int      @default(0)
+  atendeOnline            Boolean  @default(false)
+  atendeDomicilio         Boolean  @default(false)
+  estado                  String
+  cidade                  String
+  bairro                  String?
+  enderecoCompleto        String?
+  lat                     Float?
+  lng                     Float?
+  score                   Float    @default(0)
+  planoStatus             String   @default("GRATUITO")
+  planoDestaque           Boolean  @default(false)
+  mpSubscriptionId        String?
+  planoVencimento         DateTime?
+  ultimoAcessoEm          DateTime?
+  ativo                   Boolean  @default(true)
+  anosExperiencia         Float    @default(0)
+  formacaoAcademica       String?
+  certificacoes           String?
+  idiomasAtendimento      String   @default("")
+  telefone                String?
+  sitePessoal             String?
+  linkedin                String?
+  cbo                     String?
+  maxAgendamentosDia      Int      @default(20)
+  antecedenciaMinHoras    Int      @default(2)
+  janelaAgendamentoDias   Int      @default(30)
+  criadoEm                DateTime @default(now())
+  atualizadoEm            DateTime @updatedAt
+
+  user               User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  especialidades     EspecialidadeProfissional[]
+  planosAceitos      PlanoSaudeProfissional[]
+  disponibilidades   DisponibilidadeSemanal[]
+  excecoes           ExcecaoAgenda[]
+  agendamentos       Agendamento[]
+  avaliacoes         Avaliacao[]
+  favoritos          Favorito[]
+  fotosConsultorio   FotoConsultorio[]
+  documentosEnviados DocumentoPaciente[]
+
+  @@index([especialidadePrincipal])
+  @@index([estado, cidade])
+  @@index([score])
+  @@index([planoDestaque, planoStatus])
+  @@index([ativo])
+}
+
+model EspecialidadeProfissional {
+  id             String @id @default(uuid())
+  profissionalId String
+  especialidade  String
+
+  profissional Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+
+  @@unique([profissionalId, especialidade])
+}
+
+model PlanoSaudeProfissional {
+  id             String @id @default(uuid())
+  profissionalId String
+  planoSaude     String
+
+  profissional Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+
+  @@unique([profissionalId, planoSaude])
+}
+
+model PlanoSaudePaciente {
+  id         String @id @default(uuid())
+  pacienteId String
+  planoSaude String
+
+  paciente Paciente @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+
+  @@unique([pacienteId, planoSaude])
+}
+
+model Paciente {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  fotoPerfil   String?
+  telefone     String?
+  dataNasc     DateTime?
+  cpfEncrypted String?
+  cpfHash      String?
+  estado       String?
+  cidade       String?
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agendamentos Agendamento[]
+  avaliacoes   Avaliacao[]
+  favoritos    Favorito[]
+  planosUsuario PlanoSaudePaciente[]
+  documentos   DocumentoPaciente[]
+}
+
+model DisponibilidadeSemanal {
+  id             String @id @default(uuid())
+  profissionalId String
+  diaSemana      Int
+  horaInicio     String
+  horaFim        String
+
+  profissional Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+
+  @@unique([profissionalId, diaSemana, horaInicio, horaFim])
+}
+
+model ExcecaoAgenda {
+  id             String   @id @default(uuid())
+  profissionalId String
+  data           DateTime
+  motivo         String?
+  tipo           String
+  horaInicio     String?
+  horaFim        String?
+
+  profissional Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+
+  @@unique([profissionalId, data])
+}
+
+model Agendamento {
+  id                String   @id @default(uuid())
+  profissionalId    String
+  pacienteId        String
+  dataHora          DateTime
+  duracaoMinutos    Int
+  tipo              String
+  status            String
+  valorTotal        Float
+  valorPlataforma   Float
+  valorProfissional Float
+  formaPagamento    String?
+  mpPaymentId       String?
+  motivoCancelamento String?
+  canceladoPor      String?
+  reagendamentos    Int      @default(0)
+  criadoEm          DateTime @default(now())
+  atualizadoEm      DateTime @updatedAt
+
+  profissional Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+  paciente     Paciente     @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  avaliacao    Avaliacao?
+
+  @@index([profissionalId, dataHora])
+  @@index([pacienteId])
+  @@index([status])
+}
+
+model Avaliacao {
+  id                String   @id @default(uuid())
+  pacienteId        String
+  profissionalId    String
+  agendamentoId     String   @unique
+  notaGeral         Int
+  comentario        String
+  tipoConsulta      String
+  problemaResolvido String?
+  recomendaria      Boolean?
+  resposta          String?
+  respostaEditadaEm DateTime?
+  denunciada        Boolean  @default(false)
+  aprovada          Boolean  @default(true)
+  criadoEm          DateTime @default(now())
+  atualizadoEm      DateTime @updatedAt
+
+  paciente     Paciente       @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  profissional Profissional   @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+  agendamento  Agendamento    @relation(fields: [agendamentoId], references: [id])
+  notas        NotaCategoria[]
+
+  @@unique([pacienteId, profissionalId])
+  @@index([profissionalId, criadoEm])
+}
+
+model NotaCategoria {
+  id          String @id @default(uuid())
+  avaliacaoId String
+  categoria   String
+  nota        Int
+
+  avaliacao Avaliacao @relation(fields: [avaliacaoId], references: [id], onDelete: Cascade)
+
+  @@unique([avaliacaoId, categoria])
+}
+
+model FotoConsultorio {
+  id             String   @id @default(uuid())
+  profissionalId String
+  url            String
+  ordem          Int      @default(0)
+  criadoEm       DateTime @default(now())
+
+  profissional Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+}
+
+model Favorito {
+  id             String   @id @default(uuid())
+  pacienteId     String
+  profissionalId String
+  criadoEm       DateTime @default(now())
+
+  paciente     Paciente     @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  profissional Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+
+  @@unique([pacienteId, profissionalId])
+}
+
+model DocumentoPaciente {
+  id              String   @id @default(uuid())
+  pacienteId      String
+  profissionalId  String
+  nomeDocumento   String
+  url             String
+  tipo            String
+  criadoEm        DateTime @default(now())
+
+  paciente     Paciente     @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  profissional Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+}
+
+model LogAuditoria {
+  id         String   @id @default(uuid())
+  userId     String?
+  acao       String
+  entidade   String?
+  entidadeId String?
+  detalhes   String?
+  ip         String?
+  criadoEm   DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([acao, criadoEm])
+}
+
+model VerificationToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  usado     Boolean  @default(false)
+  criadoEm  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  usado     Boolean  @default(false)
+  criadoEm  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
