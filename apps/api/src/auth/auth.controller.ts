@@ -9,6 +9,8 @@ import { PrismaService } from '../database/prisma.service';
 import { EncryptionService } from '../common/encryption.service';
 import { ConselhoService } from '../professionals/conselho.service';
 import { RedisService } from '../config/redis.service';
+import { ConfigService } from '@nestjs/config';
+import { EmailService } from '../notifications/email.service';
 import {
   LoginDto, CadastroProfissionalDto, CadastroPacienteDto, RefreshTokenDto,
   VerifyEmailDto, SetupTotpDto, ChangePasswordDto, ForgotPasswordDto, ResetPasswordDto,
@@ -29,6 +31,8 @@ export class AuthController {
     private readonly encryptionService: EncryptionService,
     private readonly conselhoService: ConselhoService,
     private readonly redisService: RedisService,
+    private readonly configService: ConfigService,
+    private readonly emailService: EmailService,
   ) {}
 
   private async createAuditLog(acao: string, userId?: string, detalhes?: string) {
@@ -252,8 +256,7 @@ export class AuthController {
       },
     });
 
-    const emailService = new (await import('../notifications/email.service')).EmailService(this.configService);
-    await emailService.sendVerificationEmail(dto.email, token, user.nomeCompleto);
+    await this.emailService.sendVerificationEmail(dto.email, token, user.nomeCompleto);
 
     this.createAuditLog('RESEND_VERIFICATION', user.id);
 
@@ -433,8 +436,7 @@ export class AuthController {
       const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3001';
       const resetLink = `${frontendUrl}/auth/reset-password?token=${token}&userId=${user.id}`;
 
-      const emailService = new (await import('../notifications/email.service')).EmailService(this.configService);
-      await emailService.sendEmail({
+      await this.emailService.sendEmail({
         to: dto.email,
         subject: 'Recuperação de Senha — ClinicaFácil',
         html: `
