@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, Suspense } from 'next/navigation';
 import Link from 'next/link';
 
-export default function Login2FAPage() {
+function Login2FAContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const userId = searchParams.get('userId');
@@ -90,5 +90,13 @@ export default function Login2FAPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function Login2FAPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50 p-8"><div className="animate-spin w-10 h-10 border-4 border-primary border-t-transparent rounded-full" /></div>}>
+      <Login2FAContent />
+    </Suspense>
   );
 }
